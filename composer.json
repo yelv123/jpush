@@ -1,0 +1,20 @@
+{
+    "name": "yelv123/jpush",
+    "description": "jpush推送",
+    "type": "library",
+    "require": {
+        "php": ">=5.6",
+        "jpush/jpush": "dev-master"
+    },
+    "require-dev": {
+        "php": ">=5.6",
+        "jpush/jpush": "dev-master"
+    },
+    "license": "MIT",
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Jpusher\\": "src/"
+        }
+    }
+}
