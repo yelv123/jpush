@@ -19,7 +19,7 @@ class JpusherClient
     private $Config;
     private $DebugConfig;
 
-    public function __construct($config, $pushRecordMode)
+    public function __construct($config)
     {
         if ($config['DEBUG_SWITCH']) {
 
@@ -319,10 +319,13 @@ class JpusherClient
         $data['to_user_id']=$data['audience'];
         $this->PushRecord=PushRecord::ceate($debugPushRecord);
         try{
+
             $reuslt=$this->Jpush->send();
+
         }
         catch (\Exception $e)
         {
+
 
         }
 
