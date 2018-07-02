@@ -11,7 +11,7 @@ namespace Jpusher;
 use JPush\Client;
 use App\Models\User;
 use Illuminate\Support\Collection;
-
+use App\Models\PushRecord;
 class JpusherClient
 {
     private $Jpush;
@@ -253,7 +253,7 @@ class JpusherClient
             ]);
             //安卓推送
             $this->DebugJpush->androidNotification($string, [
-                'title'  => '上新通知',
+                'title'  => '成功邀请通知',
                 'extras' => [
                     'object_id' => $user->id,
                     'type'      => 'invitation'
@@ -277,7 +277,7 @@ class JpusherClient
         ]);
         //安卓推送
         $this->Jpush->androidNotification($string, [
-            'title'  => '上新通知',
+            'title'  => '成功邀请通知',
             'extras' => [
                 'object_id' => $user->id,
                 'type'      => 'invitation'
@@ -294,8 +294,39 @@ class JpusherClient
         if(count($this->DebugConfig) > 0)
         {
             $debugData=$this->DebugJpush->build();
+            $debugPushRecord['app_key']=$this->DebugConfig['JPUSH_APPKEY'];
+            $debugPushRecord['master_secret']=$this->DebugConfig['JPUSH_MASTERSECRET'];
+            $debugPushRecord['type']=$debugData['notification']['ios']['alert']['extras']['type'];
+            $debugPushRecord['platform']='all';
+            $debugPushRecord['content_json']=$this->DebugJpush->toJSON();
+            $debugPushRecord['to_user_id']=$debugData['audience'];
+            $this->deBugPushRecord=PushRecord::ceate($debugPushRecord);
+            try{
+                $reuslt=$this->DebugJpush->send();
+            }
+            catch (\Exception $e)
+            {
+
+            }
+
         }
         $data=$this->Jpush->build();
+        $data['app_key']=$this->Config['JPUSH_APPKEY'];
+        $data['master_secret']=$this->Config['JPUSH_MASTERSECRET'];
+        $data['type']=$data['notification']['ios']['alert']['extras']['type'];
+        $data['platform']='all';
+        $data['content_json']=$this->DebugJpush->toJSON();
+        $data['to_user_id']=$data['audience'];
+        $this->PushRecord=PushRecord::ceate($debugPushRecord);
+        try{
+            $reuslt=$this->Jpush->send();
+        }
+        catch (\Exception $e)
+        {
+
+        }
+
+
 
 
 
