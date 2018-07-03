@@ -28,6 +28,7 @@ class JpusherClient
                 'JPUSH_APPKEY'       => $config['DEBUG_JPUSH_APPKEY'],
                 'JPUSH_MASTERSECRET' => $config['DEBUG_JPUSH_MASTERSECRET'],
             ];
+            //dd($this->DebugConfig);
             $this->DebugJpush  = new Client($this->DebugConfig['JPUSH_APPKEY'], $this->DebugConfig['JPUSH_MASTERSECRET']);
             $this->DebugJpush  = $this->DebugJpush->push();
         }
@@ -49,13 +50,14 @@ class JpusherClient
     {
 
         //配置安卓的测试环境的调试
-        $string = "同行" . $scanUser->nick_name . "通过扫码关注了您！";
+        $string = "同行" . $scanUser->nick_name . "关注了您！点击查看详情>>";
         if (count($this->DebugConfig) > 0)
         {
             $apnsProduction = false;
             $this->DebugJpush->setPlatform('android');
             //发送给的用户
-            $this->DebugJpush->addAlias($qrcodeUser->id);
+
+            $this->DebugJpush->addAlias(strval($qrcodeUser->id));
             //设置推送内容
             $this->DebugJpush->setNotificationAlert($string);
             //安卓推送
@@ -71,7 +73,7 @@ class JpusherClient
 
             $this->Jpush->setPlatform('ios');
             //测试版的ios
-            $this->Jpush->addAlias($qrcodeUser->id);
+            $this->Jpush->addAlias(strval($qrcodeUser->id));
             //设置推送内容
             $this->Jpush->setNotificationAlert($string);
             //ios推送内容
@@ -89,7 +91,7 @@ class JpusherClient
             $apnsProduction = true;
             $this->Jpush->setPlatform('all');
             //发送给的用户
-           $this->Jpush->addAlias($qrcodeUser->id);
+            $this->Jpush->addAlias(strval($qrcodeUser->id));
             //设置推送内容
             $this->Jpush->setNotificationAlert($string);
             //ios推送内容
@@ -122,11 +124,15 @@ class JpusherClient
     public function userUpGoodsNotice(User $user, Collection $users)
     {
         //配置安卓的测试环境的调试
-        $string = "您关注的同行“{$user->nick_name}”上新了商品！";
-
-        $sendUserid = array_map(function ($v) {
-            return $v->id;
-        }, $users);
+        $string = "您关注的同行“{$user->nick_name}”上新了商品！点击查看详情>>";
+        $sendUserid=$users->pluck('id');
+        $sendUserid=array_map(function($v){
+            return strval($v);
+        },$sendUserid);
+        if(count($sendUserid))
+        {
+            return false;
+        }
         if (count($this->DebugConfig) > 0)
         {
             $apnsProduction = false;
@@ -271,11 +277,15 @@ class JpusherClient
     public function invitationNotice(Collection $users, User $user)
     {
         //配置安卓的测试环境的调试
-        $string         = "您邀请的通讯录好友“{$user->account}”已加入奢多多！";
-
-        $sendUserid     = array_map(function ($v) {
-            return $v->id;
-        }, $users);
+        $string         = "您邀请的通讯录好友“{$user->account}”已加入奢多多！点击查看详情>>";
+        $sendUserid=$users->pluck('id');
+        $sendUserid=array_map(function($v){
+            return strval($v);
+        },$sendUserid);
+        if(count($sendUserid))
+        {
+            return false;
+        }
         if (count($this->DebugConfig) > 0)
         {
             $apnsProduction = false;
@@ -354,37 +364,61 @@ class JpusherClient
 
     private function send()
     {
+        $debug=true;
         if (count($this->DebugConfig) > 0) {
             $debugData                        = $this->DebugJpush->build();
             $debugPushRecord['app_key']       = $this->DebugConfig['JPUSH_APPKEY'];
             $debugPushRecord['master_secret'] = $this->DebugConfig['JPUSH_MASTERSECRET'];
-            $debugPushRecord['type']          = $debugData['notification']['ios']['alert']['extras']['type'];
-            $debugPushRecord['platform']      = 'all';
+            $debugPushRecord['type']          = $debugData['notification']['android']['extras']['type'];
+            $debugPushRecord['platform']      = implode(",",$debugData['platform']);
             $debugPushRecord['content_json']  = $this->DebugJpush->toJSON();
-            $debugPushRecord['to_user_id']    = $debugData['audience'];
-            $this->deBugPushRecord            = PushRecord::ceate($debugPushRecord);
+            $debugPushRecord['to_user_id']    = json_encode($debugData['audience']);
+            $this->deBugPushRecord            = PushRecord::create($debugPushRecord);
             try {
                 $reuslt = $this->DebugJpush->send();
+                $this->deBugPushRecord->sendno=$reuslt['body']['sendno'];
+                $this->deBugPushRecord->msg_id=$reuslt['body']['msg_id'];
+                $this->deBugPushRecord->http_code=$reuslt['http_code'];
+                $this->deBugPushRecord->save();
+                $debug=true;
             } catch (\Exception $e) {
-
+                $this->deBugPushRecord->http_code=$e->getHttpCode();
+                $this->deBugPushRecord->message=$e->getMessage();
+                $this->deBugPushRecord->code=$e->getCode();
+                $this->deBugPushRecord->save();
+                $debug=false;
             }
 
         }
-        $data                  = $this->Jpush->build();
+        $pushRecordData                  = $this->Jpush->build();
         $data['app_key']       = $this->Config['JPUSH_APPKEY'];
         $data['master_secret'] = $this->Config['JPUSH_MASTERSECRET'];
-        $data['type']          = $data['notification']['ios']['alert']['extras']['type'];
-        $data['platform']      = 'all';
-        $data['content_json']  = $this->DebugJpush->toJSON();
-        $data['to_user_id']    = $data['audience'];
-        $this->PushRecord      = PushRecord::ceate($debugPushRecord);
+        $data['type']          = $pushRecordData['notification']['ios']['extras']['type'];
+        $data['platform']      = implode(",",$pushRecordData['platform']);
+        $data['content_json']  = $this->Jpush->toJSON();
+        $data['to_user_id']    = json_encode($pushRecordData['audience']);
+        $this->PushRecord      = PushRecord::create($data);
         try {
 
             $reuslt = $this->Jpush->send();
+            $this->PushRecord->sendno=$reuslt['body']['sendno'];
+            $this->PushRecord->msg_id=$reuslt['body']['msg_id'];
+            $this->PushRecord->http_code=$reuslt['http_code'];
+            $this->PushRecord->save();
+            $jpush=true;
 
         } catch (\Exception $e) {
-
-
+            $this->PushRecord->http_code=$e->getHttpCode();
+            $this->PushRecord->message=$e->getMessage();
+            $this->PushRecord->code=$e->getCode();
+            $this->PushRecord->save();
+            $jpush=false;
+        }
+        if($jpush&&$debug){
+            return true;
+        }
+        else{
+            return false;
         }
     }
 }
